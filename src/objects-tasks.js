@@ -386,32 +386,115 @@ function group(array, keySelector, valueSelector) {
  */
 
 const cssSelectorBuilder = {
-  element(/* value */) {
-    throw new Error('Not implemented');
+  element(value) {
+    if (this.hasElement) {
+      throw Error(
+        'Element, id and pseudo-element should not occur more then one time inside the selector'
+      );
+    } else if (this.summary) {
+      throw Error(
+        'Selector parts should be arranged in the following order: element, id, class, attribute, pseudo-class, pseudo-element'
+      );
+    }
+    const obj = this.createObject(value);
+    Object.defineProperty(obj, 'hasElement', { value: true });
+    return obj;
+  },
+  createObject(...value) {
+    const newObj = Object.create(cssSelectorBuilder);
+    Object.defineProperty(newObj, 'summary', {
+      value: [...value],
+    });
+    return newObj;
   },
 
-  id(/* value */) {
-    throw new Error('Not implemented');
+  id(value) {
+    if (this.summary) {
+      if (this.summary.every((elem) => !elem.startsWith('#'))) {
+        const lastElement = this.summary[this.summary.length - 1];
+        if (
+          lastElement.includes('.') ||
+          lastElement.includes(':') ||
+          lastElement.includes('[')
+        ) {
+          throw Error(
+            'Selector parts should be arranged in the following order: element, id, class, attribute, pseudo-class, pseudo-element'
+          );
+        } else this.summary.push(`#${value}`);
+      } else {
+        throw Error(
+          'Element, id and pseudo-element should not occur more then one time inside the selector'
+        );
+      }
+      return this;
+    }
+    return this.createObject(`#${value}`);
   },
 
-  class(/* value */) {
-    throw new Error('Not implemented');
+  class(value) {
+    if (this.summary) {
+      const lastElement = this.summary[this.summary.length - 1];
+      if (lastElement.includes(':') || lastElement.includes('[')) {
+        throw Error(
+          'Selector parts should be arranged in the following order: element, id, class, attribute, pseudo-class, pseudo-element'
+        );
+      } else this.summary.push(`.${value}`);
+      return this;
+    }
+    return this.createObject(`.${value}`);
   },
 
-  attr(/* value */) {
-    throw new Error('Not implemented');
+  attr(value) {
+    if (this.summary) {
+      const lastElement = this.summary[this.summary.length - 1];
+      if (lastElement.includes(':')) {
+        throw Error(
+          'Selector parts should be arranged in the following order: element, id, class, attribute, pseudo-class, pseudo-element'
+        );
+      } else this.summary.push(`[${value}]`);
+      return this;
+    }
+    return this.createObject(`[${value}]`);
   },
 
-  pseudoClass(/* value */) {
-    throw new Error('Not implemented');
+  pseudoClass(value) {
+    if (this.summary) {
+      const lastElement = this.summary[this.summary.length - 1];
+      if (lastElement.includes('::')) {
+        throw Error(
+          'Selector parts should be arranged in the following order: element, id, class, attribute, pseudo-class, pseudo-element'
+        );
+      } else this.summary.push(`:${value}`);
+      return this;
+    }
+    return this.createObject(`:${value}`);
   },
 
-  pseudoElement(/* value */) {
-    throw new Error('Not implemented');
+  pseudoElement(value) {
+    if (this.summary) {
+      if (this.summary.every((elem) => !elem.startsWith('::'))) {
+        this.summary.push(`::${value}`);
+      } else {
+        throw Error(
+          'Element, id and pseudo-element should not occur more then one time inside the selector'
+        );
+      }
+      return this;
+    }
+    return this.createObject(`::${value}`);
   },
 
-  combine(/* selector1, combinator, selector2 */) {
-    throw new Error('Not implemented');
+  combine(selector1, combinator, selector2) {
+    const obj = this.createObject(
+      ...selector1.summary,
+      ` ${combinator} `,
+      ...selector2.summary
+    );
+    return obj;
+  },
+
+  stringify() {
+    return this.summary.join('');
   },
 };
 
